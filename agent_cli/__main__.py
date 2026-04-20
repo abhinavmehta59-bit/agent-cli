@@ -16,7 +16,6 @@ from typing import Optional
 
 # Constants
 CONFIG_DIR = Path.home() / ".hermes" / "agent-cli" / "config"
-AGENT_TEMPLATES = Path(__file__).parent.parent / "agent-templates.json"
 PID_DIR = CONFIG_DIR / "pids"
 LOG_DIR = Path.home() / ".hermes" / "agent-cli" / "logs"
 
@@ -28,7 +27,9 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_templates() -> dict:
     """Load agent templates from JSON."""
-    with open(AGENT_TEMPLATES) as f:
+    import importlib.resources as resources
+    templates_file = resources.files("agent_cli").joinpath("templates.json")
+    with templates_file.open() as f:
         data = json.load(f)
     # Handle both flat structure and nested {"templates": {...}} structure
     if "templates" in data:
@@ -371,8 +372,12 @@ def cmd_monitor(args) -> int:
     templates = load_templates()
     check_interval = args.interval or 30
     auto_restart = not args.no_restart
+    max_retries = args.max_retries or 3
     
-    print(f"🔄 Starting monitor (interval: {check_interval}s, auto-restart: {auto_restart})")
+    # Track restart counts per agent: {agent_name: count}
+    restart_counts = {}
+    
+    print(f"🔄 Starting monitor (interval: {check_interval}s, auto-restart: {auto_restart}, max_retries: {max_retries})")
     print("   Press Ctrl+C to stop\n")
     
     try:
@@ -383,30 +388,39 @@ def cmd_monitor(args) -> int:
                     continue
                 
                 if is_running(agent_name):
+                    # Reset count on successful run
+                    if agent_name in restart_counts:
+                        restart_counts[agent_name] = 0
                     continue
                 
-                # Agent crashed - auto-restart
+                # Agent crashed - check retry count
+                current_retries = restart_counts.get(agent_name, 0)
+                
                 if auto_restart:
-                    print(f"⚠️  {agent_name}: crashed, restarting...")
-                    # Build restart command
-                    hermes_bin = find_hermes_binary()
-                    if hermes_bin:
-                        cmd = build_hermes_command(agent_name, config)
-                        log_file = get_log_file(agent_name)
-                        try:
-                            proc = subprocess.Popen(
-                                cmd,
-                                stdout=open(log_file, "a"),
-                                stderr=subprocess.STDOUT,
-                                start_new_session=True
-                            )
-                            pid_file = get_pid_file(agent_name)
-                            pid_file.write_text(str(proc.pid))
-                            start_time_file = CONFIG_DIR / f"{agent_name}.start_time"
-                            start_time_file.write_text(str(time.time()))
-                            print(f"   ✅ restarted (PID {proc.pid})")
-                        except Exception as e:
-                            print(f"   ❌ restart failed: {e}")
+                    if current_retries < max_retries:
+                        print(f"⚠️  {agent_name}: crashed, restarting ({current_retries + 1}/{max_retries})...")
+                        hermes_bin = find_hermes_binary()
+                        if hermes_bin:
+                            cmd = build_hermes_command(agent_name, config)
+                            log_file = get_log_file(agent_name)
+                            try:
+                                proc = subprocess.Popen(
+                                    cmd,
+                                    stdout=open(log_file, "a"),
+                                    stderr=subprocess.STDOUT,
+                                    start_new_session=True
+                                )
+                                pid_file = get_pid_file(agent_name)
+                                pid_file.write_text(str(proc.pid))
+                                start_time_file = CONFIG_DIR / f"{agent_name}.start_time"
+                                start_time_file.write_text(str(time.time()))
+                                restart_counts[agent_name] = current_retries + 1
+                                print(f"   ✅ restarted (PID {proc.pid})")
+                            except Exception as e:
+                                print(f"   ❌ restart failed: {e}")
+                    else:
+                        print(f"🚨 {agent_name}: max retries ({max_retries}) exceeded, giving up")
+                        print(f"   Run 'agent-cli start {agent_name}' to manually restart")
                 else:
                     print(f"⚠️  {agent_name}: not running (auto-restart disabled)")
             
@@ -476,6 +490,12 @@ def main():
         "--no-restart",
         action="store_true",
         help="Disable auto-restart on crash"
+    )
+    monitor_parser.add_argument(
+        "-r", "--max-retries",
+        type=int,
+        default=3,
+        help="Max restart attempts before giving up (default: 3)"
     )
     monitor_parser.set_defaults(func=cmd_monitor)
     
