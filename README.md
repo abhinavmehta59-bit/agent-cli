@@ -1,108 +1,88 @@
-# Agent CLI — AI Agent Platform for Solo Founders & Small Agencies
+# Agent CLI — Deploy AI Agents from Your Terminal
 
 <p align="center">
   <img src="https://img.shields.io/badge/Version-0.1.0-blue.svg" alt="Version">
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
-  <img src="https://img.shields.io/badge/Platforms-Telegram%20%7C%20Discord%20%7C%20Slack-purple.svg" alt="Platforms">
+  <img src="https://img.shields.io/badge/Python-3.10+-orange.svg" alt="Python">
 </p>
 
-## What is Agent CLI?
-
-Agent CLI is a command-line platform that deploys autonomous AI agents to handle repetitive tasks for solo founders and small agencies. Think of it as having a team of virtual assistants that work 24/7 — handling emails, managing social media, conducting research, and more.
-
-## Target Users
-
-- **Solo Founders** — Bootstrap your productivity with AI assistants
-- **Small Agencies** (2-10 people) — Scale operations without hiring
-- **Freelancers** — Automate client communication and admin
-- **Startup Teams** — Add AI capacity without overhead
+**Agent CLI** is a command-line platform for deploying autonomous AI agents. Think of it as "Hermes for everyone else" — launch, manage, and monitor AI agents with simple commands.
 
 ## Quick Start
 
 ```bash
-# Clone and enter directory
+# Install
 cd ~/.hermes/agent-cli
+pip install -e .
 
-# Run the setup wizard
-python3 setup-wizard.py
+# Run setup wizard
+python3 -m agent_cli setup-wizard
 
-# Start your agent
-python3 agent-cli.py start
+# Start an agent
+agent-cli start email-agent
+
+# Check status
+agent-cli status
+
+# Monitor (auto-restart crashed agents)
+agent-cli monitor
 ```
 
-## Features
+## Commands
 
-### Pre-Built Agent Templates
+| Command | Description |
+|---------|-------------|
+| `agent-cli start <agent>` | Launch an agent via Hermes gateway |
+| `agent-cli stop <agent>` | Stop a running agent |
+| `agent-cli status` | Show dashboard with running agents |
+| `agent-cli logs <agent>` | View agent logs |
+| `agent-cli deploy <agent>` | Generate systemd service for production |
+| `agent-cli monitor` | Run daemon with auto-restart on crash |
+| `agent-cli monitor -r 5` | Monitor with max 5 restart retries |
 
-| Template | Description | Capabilities |
-|----------|-------------|--------------|
-| **Email Agent** | Smart inbox management | Gmail integration, CRM sync, auto-respond, follow-ups |
-| **Social Agent** | Content pipeline automation | Content creation, scheduling, multi-platform posting |
-| **Research Agent** | Knowledge automation | Web search, report generation, knowledge base management |
-| **Full-Stack** | Everything included | All of the above combined |
+## Agent Templates
 
-### Supported Platforms
-
-- **Telegram** — Direct bot interface
-- **Discord** — Server-based multi-agent
-- **Slack** — Workspace integration
-
-### Core Capabilities
-
-- Encrypted API key storage
-- Sandboxed execution environment
-- Audit logging (no sensitive data)
-- Easy configuration via JSON
-- Extensible skill system
+| Template | Description |
+|----------|-------------|
+| **email-agent** | Gmail + CRM + auto-respond + follow-ups |
+| **social-agent** | Content pipeline + scheduling + posting |
+| **research-agent** | Web search + reports + knowledge base |
+| **full-stack** | All of the above combined |
 
 ## Architecture
 
 ```
 agent-cli/
-├── agent-cli.py          # Main CLI entry point
-├── setup-wizard.py       # Interactive setup
-├── agent-templates.json  # Agent definitions
-├── security.md           # Security documentation
-├── config/               # Runtime configuration
-├── agents/               # Agent implementations
-└── skills/               # Reusable skill modules
+├── agent_cli/
+│   ├── __init__.py
+│   ├── __main__.py      # Main CLI entry point
+│   └── templates.json   # Agent definitions
+├── setup-wizard.py      # Interactive setup
+├── pyproject.toml       # Package config
+├── docs/
+│   └── index.html       # Landing page
+└── tests/
+    └── test_cli.py      # Test suite
 ```
 
-## Configuration
+## Development
 
-Agents are configured via JSON profiles in `config/agents/`:
+```bash
+# Run tests
+python -m pytest tests/
 
-```json
-{
-  "name": "my-email-agent",
-  "template": "email-agent",
-  "platforms": ["telegram"],
-  "skills": ["gmail", "crm", "auto-respond"],
-  "schedule": "0 9-17 * * 1-5"
-}
+# Install in dev mode
+pip install -e .
+
+# Format code
+ruff check .
 ```
-
-## Security
-
-All sensitive data (API keys, credentials) is:
-- Encrypted at rest using AES-256
-- Never logged or exposed in audit trails
-- Stored in sandboxed local storage
-
-See [security.md](security.md) for full details.
 
 ## Requirements
 
 - Python 3.10+
-- Telegram Bot Token (for Telegram integration)
-- Discord Bot Token (for Discord integration)
-- Slack Bot Token (for Slack integration)
-- Platform-specific API keys (Gmail, OpenAI, etc.)
+- Hermes (installed at `~/.hermes/hermes-agent/venv/bin/hermes`)
 
 ## License
 
 MIT License — Copyright (c) 2024
-
----
-
-**Need help?** Open an issue on GitHub or reach out via the community Discord.
