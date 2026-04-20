@@ -16,7 +16,7 @@ from typing import Optional
 
 # Constants
 CONFIG_DIR = Path.home() / ".hermes" / "agent-cli" / "config"
-AGENT_TEMPLATES = Path(__file__).parent / "agent-templates.json"
+AGENT_TEMPLATES = Path(__file__).parent.parent / "agent-templates.json"
 PID_DIR = CONFIG_DIR / "pids"
 LOG_DIR = Path.home() / ".hermes" / "agent-cli" / "logs"
 
@@ -70,9 +70,57 @@ def is_running(agent_name: str) -> bool:
         return False
 
 
+def find_hermes_binary() -> Optional[str]:
+    """Find the hermes binary."""
+    # Check common venv locations first
+    venv_paths = [
+        Path.home() / ".hermes" / "hermes-agent" / "venv" / "bin" / "hermes",
+    ]
+    for path in venv_paths:
+        if path.is_file() and os.access(path, os.X_OK):
+            return str(path)
+    
+    # Check PATH
+    for path in os.environ.get("PATH", "").split(":"):
+        binary = os.path.join(path, "hermes")
+        if os.path.isfile(binary) and os.access(binary, os.X_OK):
+            return binary
+    # Check common locations
+    common_paths = [
+        "/usr/local/bin/hermes",
+        "/opt/homebrew/bin/hermes",
+        os.path.expanduser("~/.local/bin/hermes"),
+    ]
+    for path in common_paths:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
+
+
+def build_hermes_command(agent_name: str, config: dict) -> list:
+    """Build hermes gateway run command from config."""
+    hermes_bin = find_hermes_binary()
+    if not hermes_bin:
+        raise RuntimeError("hermes binary not found. Install Hermes first.")
+    
+    cmd = [hermes_bin, "gateway", "run", "--profile", agent_name]
+    
+    # Add config overrides from agent config
+    if "default_config" in config:
+        for key, value in config["default_config"].items():
+            cmd.extend([f"--{key}", str(value)])
+    
+    return cmd
+
+
 def cmd_start(args) -> int:
-    """Start one or all agents."""
+    """Start one or all agents via Hermes gateway."""
     templates = load_templates()
+    hermes_bin = find_hermes_binary()
+    
+    if not hermes_bin:
+        print("❌ Hermes not found. Install from https://hermes.sh")
+        return 1
     
     # Determine which agents to start
     if args.agent == "all":
@@ -98,29 +146,36 @@ def cmd_start(args) -> int:
             failed.append(agent_name)
             continue
         
-        # Build command to start agent
-        # For now, we'll simulate agent startup with a simple background process
-        # In production, this would spawn the actual agent process
         log_file = get_log_file(agent_name)
         
-        # Create a simple mock agent process
-        cmd = [
-            sys.executable, "-c",
-            f"import time; open('{log_file}', 'w').write(f'{agent_name} started at {{time.time()}}\\n'); "
-            f"while True: time.sleep(3600)"
-        ]
-        
         try:
+            # Build real hermes command
+            cmd = build_hermes_command(agent_name, config)
+            
+            # Open log file for this agent
+            log_fp = open(log_file, "a")
+            
+            # Start hermes gateway process
             proc = subprocess.Popen(
                 cmd,
-                stdout=open(log_file, "a"),
+                stdout=log_fp,
                 stderr=subprocess.STDOUT,
                 start_new_session=True
             )
+            
+            # Store PID
             pid_file = get_pid_file(agent_name)
             pid_file.write_text(str(proc.pid))
+            
+            # Record start time for uptime tracking
+            start_time_file = CONFIG_DIR / f"{agent_name}.start_time"
+            start_time_file.write_text(str(time.time()))
+            
             print(f"✅ {agent_name}: started (PID {proc.pid})")
+            print(f"   Command: {' '.join(cmd)}")
+            print(f"   Logs: {log_file}")
             started.append(agent_name)
+            
         except Exception as e:
             print(f"❌ {agent_name}: failed to start — {e}")
             failed.append(agent_name)
@@ -189,17 +244,23 @@ def cmd_status(args) -> int:
         if is_running(agent_name):
             try:
                 pid = int(pid_file.read_text().strip())
-                # Try to get uptime from log
+                # Get uptime from start_time file
+                start_time_file = CONFIG_DIR / f"{agent_name}.start_time"
                 uptime = "running"
-                if log_file.exists():
-                    content = log_file.read_text()
-                    if "started at" in content:
-                        try:
-                            ts = float(content.split("started at ")[1].strip())
-                            secs = int(time.time() - ts)
+                if start_time_file.exists():
+                    try:
+                        ts = float(start_time_file.read_text().strip())
+                        secs = int(time.time() - ts)
+                        mins = secs // 60
+                        hours = mins // 60
+                        if hours > 0:
+                            uptime = f"{hours}h {mins%60}m"
+                        elif mins > 0:
+                            uptime = f"{mins}m"
+                        else:
                             uptime = f"{secs}s"
-                        except:
-                            pass
+                    except:
+                        pass
                 print(f"{agent_name:<20} {'🟢 running':<12} {pid:<10} {uptime}")
             except:
                 print(f"{agent_name:<20} {'🟡 unknown':<12}")
@@ -237,7 +298,7 @@ def cmd_logs(args) -> int:
 
 
 def cmd_deploy(args) -> int:
-    """Deploy agent(s) to production."""
+    """Deploy agent(s) to production with systemd service."""
     templates = load_templates()
     
     if args.agent == "all":
@@ -245,9 +306,113 @@ def cmd_deploy(args) -> int:
     else:
         agents = [args.agent]
     
-    print("🚀 Deploying to production...")
-    print(f"   Agents: {', '.join(agents)}")
-    print("   (Production deployment not yet implemented)")
+    hermes_bin = find_hermes_binary()
+    if not hermes_bin:
+        print("❌ Hermes not found.")
+        return 1
+    
+    deployed = []
+    for agent_name in agents:
+        config = get_agent_config(agent_name)
+        if not config:
+            print(f"⚠️  {agent_name}: no config. Run setup-wizard first.")
+            continue
+        
+        # Generate systemd service file
+        service_content = f"""[Unit]
+Description=Agent CLI - {agent_name}
+After=network.target
+
+[Service]
+Type=simple
+User={os.environ.get('USER', 'root')}
+WorkingDirectory={Path.home() / '.hermes' / 'agent-cli'}
+ExecStart={hermes_bin} gateway run --profile {agent_name}
+Restart=always
+RestartSec=10
+StandardOutput=append:{LOG_DIR / f'{agent_name}.log'}
+StandardError=append:{LOG_DIR / f'{agent_name}.log'}
+
+[Install]
+WantedBy=multi-user.target
+"""
+        
+        service_name = f"agent-cli-{agent_name}"
+        service_path = Path(f"/etc/systemd/system/{service_name}.service")
+        
+        # Try to install systemd service (requires root)
+        if os.access(service_path.parent, os.W_OK):
+            service_path.write_text(service_content)
+            os.system(f"systemctl daemon-reload")
+            os.system(f"systemctl enable {service_name}")
+            os.system(f"systemctl start {service_name}")
+            print(f"✅ {agent_name}: deployed as systemd service")
+            deployed.append(agent_name)
+        else:
+            # Fallback: just show what would be created
+            print(f"📄 {agent_name}: systemd service (needs sudo)")
+            print(f"   Service file would be at: {service_path}")
+            print(f"   To install manually:")
+            print(f"   sudo cp agent-cli-{agent_name}.service /etc/systemd/system/")
+            print(f"   sudo systemctl enable --now agent-cli-{agent_name}")
+            
+            # Save service file locally for user to install
+            local_service = CONFIG_DIR / f"{agent_name}.service"
+            local_service.write_text(service_content)
+            print(f"   Service file saved: {local_service}")
+            deployed.append(agent_name)
+    
+    print(f"\n📊 Deployed: {len(deployed)} services")
+    return 0
+
+
+def cmd_monitor(args) -> int:
+    """Monitor agents and auto-restart on failure."""
+    templates = load_templates()
+    check_interval = args.interval or 30
+    auto_restart = not args.no_restart
+    
+    print(f"🔄 Starting monitor (interval: {check_interval}s, auto-restart: {auto_restart})")
+    print("   Press Ctrl+C to stop\n")
+    
+    try:
+        while True:
+            for agent_name in templates.keys():
+                config = get_agent_config(agent_name)
+                if not config:
+                    continue
+                
+                if is_running(agent_name):
+                    continue
+                
+                # Agent crashed - auto-restart
+                if auto_restart:
+                    print(f"⚠️  {agent_name}: crashed, restarting...")
+                    # Build restart command
+                    hermes_bin = find_hermes_binary()
+                    if hermes_bin:
+                        cmd = build_hermes_command(agent_name, config)
+                        log_file = get_log_file(agent_name)
+                        try:
+                            proc = subprocess.Popen(
+                                cmd,
+                                stdout=open(log_file, "a"),
+                                stderr=subprocess.STDOUT,
+                                start_new_session=True
+                            )
+                            pid_file = get_pid_file(agent_name)
+                            pid_file.write_text(str(proc.pid))
+                            start_time_file = CONFIG_DIR / f"{agent_name}.start_time"
+                            start_time_file.write_text(str(time.time()))
+                            print(f"   ✅ restarted (PID {proc.pid})")
+                        except Exception as e:
+                            print(f"   ❌ restart failed: {e}")
+                else:
+                    print(f"⚠️  {agent_name}: not running (auto-restart disabled)")
+            
+            time.sleep(check_interval)
+    except KeyboardInterrupt:
+        print("\n🛑 Monitor stopped")
     
     return 0
 
@@ -298,6 +463,21 @@ def main():
         help="Agent name or 'all' (default: all)"
     )
     deploy_parser.set_defaults(func=cmd_deploy)
+    
+    # monitor command
+    monitor_parser = subparsers.add_parser("monitor", help="Monitor agents and auto-restart")
+    monitor_parser.add_argument(
+        "-i", "--interval",
+        type=int,
+        default=30,
+        help="Check interval in seconds (default: 30)"
+    )
+    monitor_parser.add_argument(
+        "--no-restart",
+        action="store_true",
+        help="Disable auto-restart on crash"
+    )
+    monitor_parser.set_defaults(func=cmd_monitor)
     
     args = parser.parse_args()
     return args.func(args)

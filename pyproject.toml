@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-cli"
+version = "0.1.0"
+description = "CLI for deploying AI agents — hermes for everyone else"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Agent CLI Team", email = "hello@agentcli.sh"}
+]
+keywords = ["ai", "agents", "cli", "hermes", "automation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+agent-cli = "agent_cli.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/agent-cli/agent-cli"
+Repository = "https://github.com/agent-cli/agent-cli"
+Issues = "https://github.com/agent-cli/agent-cli/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agent_cli*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
