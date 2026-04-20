@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "CLI for deploying AI agents — hermes for everyone else"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 authors = [
     {name = "Agent CLI Team", email = "hello@agentcli.sh"}
 ]
@@ -51,7 +51,7 @@ target-version = "py310"
 
 [tool.black]
 line-length = 100
-target-version = ["py310"]
+target-version = ["py39", "py310", "py311", "py312"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
