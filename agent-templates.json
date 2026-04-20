@@ -1,0 +1,262 @@
+{
+  "version": "1.0.0",
+  "templates": {
+    "email-agent": {
+      "name": "Email Agent",
+      "description": "Smart inbox management with CRM integration, auto-responders, and follow-up sequences",
+      "required_skills": [
+        "email",
+        "crm",
+        "follow-up-automation",
+        "auto-respond",
+        "scheduling"
+      ],
+      "required_tools": [
+        "gmail",
+        "google-calendar",
+        "crm-api"
+      ],
+      "required_api_keys": [
+        "google/oauth2",
+        "openai/api_key"
+      ],
+      "default_config": {
+        "auto_respond_enabled": true,
+        "response_delay_seconds": 30,
+        "max_daily_emails": 100,
+        "follow_up_days": [2, 4, 7],
+        "crm_sync_interval_minutes": 15,
+        "priority_inbox": true,
+        "spam_filter_strength": "medium",
+        "working_hours": {
+          "start": "09:00",
+          "end": "18:00",
+          "timezone": "UTC"
+        },
+        "quick_responses": [
+          {
+            "trigger": "meeting_request",
+            "response": "Thanks for reaching out! I'd love to connect. What times work best for you this week?"
+          },
+          {
+            "trigger": "pricing_inquiry",
+            "response": "Thanks for your interest! I'd be happy to discuss our pricing. Could you share more about your needs?"
+          }
+        ]
+      },
+      "permissions": [
+        "read_emails",
+        "send_emails",
+        "manage_contacts",
+        "create_events"
+      ]
+    },
+    "social-agent": {
+      "name": "Social Agent",
+      "description": "Automated content pipeline with scheduling, multi-platform posting, and engagement tracking",
+      "required_skills": [
+        "content-creation",
+        "scheduling",
+        "posting",
+        "engagement-analysis",
+        "hashtag-research"
+      ],
+      "required_tools": [
+        "twitter-api",
+        "linkedin-api",
+        "instagram-api",
+        "content-scheduler"
+      ],
+      "required_api_keys": [
+        "twitter/api_key",
+        "linkedin/oauth2",
+        "openai/api_key",
+        "unsplash/api_key"
+      ],
+      "default_config": {
+        "platforms": ["twitter", "linkedin"],
+        "posting_schedule": {
+          "twitter": ["09:00", "12:00", "15:00", "18:00"],
+          "linkedin": ["08:00", "12:00", "17:00"],
+          "instagram": ["10:00", "14:00", "19:00"]
+        },
+        "content_types": ["thread", "single_post", "image_caption"],
+        "max_posts_per_day": 10,
+        "auto_hashtags": true,
+        "hashtag_limit": 30,
+        "engagement_tracking": true,
+        "comment_responses": true,
+        "content_calendar_sync": true,
+        "approval_required": false,
+        "draft_review_hours": 4,
+        "platform_limits": {
+          "twitter": 280,
+          "linkedin": 3000,
+          "instagram": 2200
+        }
+      },
+      "permissions": [
+        "read_posts",
+        "create_posts",
+        "manage_media",
+        "read_analytics",
+        "manage_schedules"
+      ]
+    },
+    "research-agent": {
+      "name": "Research Agent",
+      "description": "Automated web research, report generation, and knowledge base management",
+      "required_skills": [
+        "web-search",
+        "data-analysis",
+        "report-generation",
+        "knowledge-base",
+        "summarization"
+      ],
+      "required_tools": [
+        "web-search",
+        "browser",
+        "knowledge-store",
+        "report-generator"
+      ],
+      "required_api_keys": [
+        "openai/api_key",
+        "serpapi/key",
+        "github/token"
+      ],
+      "default_config": {
+        "search_engines": ["google", "bing"],
+        "max_results_per_search": 10,
+        "research_depth": "standard",
+        "report_formats": ["markdown", "html", "pdf"],
+        "citation_style": "apa",
+        "knowledge_base_path": "./knowledge",
+        "auto_categorize": true,
+        "summary_length": "medium",
+        "key_points_extraction": true,
+        "competitor_tracking": true,
+        "alert_keywords": [],
+        "data_retention_days": 90,
+        "cache_search_results": true,
+        "cache_ttl_hours": 24
+      },
+      "permissions": [
+        "web_search",
+        "read_files",
+        "write_files",
+        "create_reports"
+      ]
+    },
+    "full-stack": {
+      "name": "Full-Stack Agent",
+      "description": "Complete automation suite combining email, social, and research capabilities",
+      "required_skills": [
+        "email",
+        "crm",
+        "follow-up-automation",
+        "content-creation",
+        "scheduling",
+        "posting",
+        "web-search",
+        "data-analysis",
+        "report-generation",
+        "knowledge-base"
+      ],
+      "required_tools": [
+        "gmail",
+        "google-calendar",
+        "crm-api",
+        "twitter-api",
+        "linkedin-api",
+        "web-search",
+        "knowledge-store"
+      ],
+      "required_api_keys": [
+        "google/oauth2",
+        "twitter/api_key",
+        "linkedin/oauth2",
+        "openai/api_key",
+        "serpapi/key",
+        "unsplash/api_key",
+        "github/token"
+      ],
+      "default_config": {
+        "enabled_modules": ["email", "social", "research"],
+        "module_configs": {
+          "email": {
+            "auto_respond_enabled": true,
+            "max_daily_emails": 50
+          },
+          "social": {
+            "platforms": ["twitter", "linkedin"],
+            "max_posts_per_day": 5
+          },
+          "research": {
+            "search_engines": ["google"],
+            "max_results_per_search": 5
+          }
+        },
+        "unified_dashboard": true,
+        "cross_module_automation": true,
+        "reporting_interval_hours": 24,
+        "alert_on_errors": true,
+        "working_hours": {
+          "start": "08:00",
+          "end": "20:00",
+          "timezone": "UTC"
+        }
+      },
+      "permissions": [
+        "read_emails",
+        "send_emails",
+        "manage_contacts",
+        "create_events",
+        "read_posts",
+        "create_posts",
+        "manage_media",
+        "web_search",
+        "read_files",
+        "write_files",
+        "create_reports"
+      ]
+    }
+  },
+  "common_skills": {
+    "memory": {
+      "name": "Persistent Memory",
+      "description": "Long-term memory across sessions"
+    },
+    "calendar": {
+      "name": "Calendar Management",
+      "description": "Schedule and manage events"
+    },
+    "notifications": {
+      "name": "Multi-Channel Notifications",
+      "description": "Send alerts via Telegram, Discord, or Slack"
+    },
+    "logging": {
+      "name": "Audit Logging",
+      "description": "Track agent actions (no sensitive data)"
+    }
+  },
+  "platform_config": {
+    "telegram": {
+      "bot_types": ["user", "group", "channel"],
+      "max_message_length": 4096,
+      "supports_media": true,
+      "rate_limit_per_second": 30
+    },
+    "discord": {
+      "bot_types": ["user", "guild"],
+      "max_message_length": 2000,
+      "supports_media": true,
+      "rate_limit_per_second": 50
+    },
+    "slack": {
+      "bot_types": ["bot", "app"],
+      "max_message_length": 30000,
+      "supports_media": true,
+      "rate_limit_per_second": 100
+    }
+  }
+}
